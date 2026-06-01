@@ -66,7 +66,10 @@
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17 7.3 11.7l1.4-1.4L12 13.6V3h0zM5 19h14v2H5z"/></svg>
     התקן
   </a>
-  <div class="hint">לחיצה מורידה את הקובץ <b>כלוד 1.stl</b> — מוכן להדפסה / לייבוא ל-Tinkercad</div>
+  <div class="hint">
+    לחיצה מורידה את <b>כלוד 1.stl</b> (להדפסה רגילה).
+    &nbsp;|&nbsp; <a href="elvison_color.glb" download style="color:var(--cyan)">הורדת הגרסה הצבעונית (GLB)</a>
+  </div>
 
   <div class="parts">
     <h2>הורדת חלקים בנפרד (לצביעה ב-Tinkercad)</h2>
@@ -92,7 +95,7 @@
   </script>
   <script type="module">
     import * as THREE from 'three';
-    import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     const el = document.getElementById('viewer');
@@ -110,19 +113,20 @@
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 1.6;
 
-    new STLLoader().load('elvison.stl', geo => {
+    new GLTFLoader().load('elvison_color.glb', gltf => {
       document.getElementById('loading')?.remove();
-      geo.computeVertexNormals();
-      const mat = new THREE.MeshStandardMaterial({ color:0x0e1418, metalness:0.2, roughness:0.6,
-        emissive:0x0a3a40, emissiveIntensity:0.25 });
-      const mesh = new THREE.Mesh(geo, mat);
-      geo.computeBoundingBox();
-      const c = new THREE.Vector3(); geo.boundingBox.getCenter(c);
-      mesh.position.sub(c);
-      mesh.rotation.x = -Math.PI/2;            // Z-up model -> Y-up scene
-      scene.add(mesh);
-      const size = geo.boundingBox.getSize(new THREE.Vector3()).length();
-      camera.position.set(0, 0, size*1.1);
+      const pivot = new THREE.Group();
+      const model = gltf.scene;
+      model.rotation.x = -Math.PI/2;           // Z-up model -> Y-up scene
+      pivot.add(model);
+      scene.add(pivot);
+      pivot.updateWorldMatrix(true, true);
+      const bbox = new THREE.Box3().setFromObject(pivot);
+      const c = new THREE.Vector3(); bbox.getCenter(c);
+      model.position.sub(c);                    // recenter at origin
+      const size = bbox.getSize(new THREE.Vector3()).length();
+      camera.position.set(0, 0, size*1.05);
+      controls.target.set(0, 0, 0);
       controls.update();
     }, undefined, err => {
       const l = document.getElementById('loading'); if (l) l.textContent = 'שגיאה בטעינת המודל';

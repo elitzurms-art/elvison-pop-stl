@@ -1,153 +1,194 @@
 #!/usr/bin/env python3
 """
 Procedural blocky (Minecraft/voxel-style) figure of the "ELVISON" YouTuber Pop,
-inspired by the reference renders. This is a stylized interpretation, not a 1:1
-copy of the commercial render. Outputs a printable STL.
+tuned to resemble the reference renders AND fully colored.
 
-Coordinate system: Z = up, X = right, Y = depth (forward = +Y).
-Units = millimeters.
+Outputs:
+  - elvison.stl        : watertight geometry (single color) for normal printing
+  - elvison_color.glb  : COLORED model (viewer / multi-color printing)
+
+Coordinate system: Z = up, X = right, Y = depth (forward = +Y). Units = mm.
 """
 import numpy as np
 import trimesh
+from shapely.geometry import Polygon
 
-parts = []
+# ---- palette (RGBA 0-255), sampled to match the reference render -----------
+SKIN   = [238, 199, 158, 255]
+BLACK  = [20, 20, 22, 255]       # black suit / base
+EYE    = [8, 8, 10, 255]         # glossy black eyes
+BROWN  = [107, 68, 35, 255]      # hair
+BROW   = [78, 48, 24, 255]       # eyebrows
+CYAN   = [25, 182, 201, 255]     # suit pixels + E logo
+WHITE  = [240, 240, 240, 255]    # shoe soles
+RED    = [220, 20, 20, 255]      # play button
+GREY   = [35, 38, 42, 255]       # camera
+
+GROUPS = {}      # color-key -> (rgba, [meshes])
+
+
+def put(rgba, mesh):
+    key = tuple(rgba)
+    GROUPS.setdefault(key, (rgba, []))[1].append(mesh)
 
 
 def box(size, center):
-    """Axis-aligned box with given (sx, sy, sz) centered at (cx, cy, cz)."""
     b = trimesh.creation.box(extents=size)
     b.apply_translation(center)
     return b
 
 
-def add(size, center):
-    parts.append(box(size, center))
+def add(rgba, size, center):
+    put(rgba, box(size, center))
 
 
-# ----------------------------------------------------------------------------
-# BASE — round disc with a small "play button" tab in front
-# ----------------------------------------------------------------------------
-base = trimesh.creation.cylinder(radius=36, height=9, sections=64)
-base.apply_translation([0, 0, 4.5])
-parts.append(base)
+def disc(radius, thick, center, axis="y", sections=40):
+    c = trimesh.creation.cylinder(radius=radius, height=thick, sections=sections)
+    if axis == "y":
+        c.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]))
+    elif axis == "x":
+        c.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0]))
+    c.apply_translation(center)
+    return c
 
-# YouTube play-button tab in front of the base (rounded block)
-add((20, 12, 14), (-18, -34, 9))            # red play button body
-# triangle "play" notch is left as a flat face; printable as a block
 
-# ----------------------------------------------------------------------------
-# LEGS — two blocky legs standing on the base
-# ----------------------------------------------------------------------------
-leg_h = 34
-leg_w = 17
-leg_d = 18
-leg_z = 9 + leg_h / 2
-add((leg_w, leg_d, leg_h), (-11, 0, leg_z))   # left leg
-add((leg_w, leg_d, leg_h), (+11, 0, leg_z))   # right leg
+# ============================================================================
+# BASE — black disc + red play-button tab + white triangle
+# ============================================================================
+base = trimesh.creation.cylinder(radius=38, height=10, sections=72)
+base.apply_translation([0, 0, 5])
+put(BLACK, base)
 
-# shoes (slightly wider, white soles in the render -> just a lip here)
-shoe_z = 9 + 5
-add((leg_w + 4, leg_d + 6, 10), (-11, -2, shoe_z))
-add((leg_w + 4, leg_d + 6, 10), (+11, -2, shoe_z))
+add(RED, (26, 16, 16), (0, -34, 10))
+tri = Polygon([(-4, -4), (-4, 4), (5, 0)])
+play = trimesh.creation.extrude_polygon(tri, height=6)
+play.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
+play.apply_translation([0, -34 - 8.5, 10])
+put(WHITE, play)
 
-# ----------------------------------------------------------------------------
-# TORSO — main body block
-# ----------------------------------------------------------------------------
-torso_h = 44
-torso_w = 46
-torso_d = 26
-torso_z = 9 + leg_h + torso_h / 2
-add((torso_w, torso_d, torso_h), (0, 0, torso_z))
+# ============================================================================
+# LEGS + white soles
+# ============================================================================
+leg_h, leg_w, leg_d = 32, 18, 19
+leg_z = 10 + leg_h / 2
+add(BLACK, (leg_w, leg_d, leg_h), (-11, 0, leg_z))
+add(BLACK, (leg_w, leg_d, leg_h), (+11, 0, leg_z))
+add(WHITE, (leg_w + 4, leg_d + 7, 7), (-11, -2, 10 + 4))
+add(WHITE, (leg_w + 4, leg_d + 7, 7), (+11, -2, 10 + 4))
 
-torso_top = 9 + leg_h + torso_h
+# ============================================================================
+# TORSO + arms (black suit)
+# ============================================================================
+torso_h, torso_w, torso_d = 40, 48, 27
+torso_z = 10 + leg_h + torso_h / 2
+torso_top = 10 + leg_h + torso_h
+add(BLACK, (torso_w, torso_d, torso_h), (0, 0, torso_z))
 
-# ----------------------------------------------------------------------------
-# ARMS — left arm down, right arm raised holding camera
-# ----------------------------------------------------------------------------
-arm_w = 13
-arm_d = 14
+arm_w, arm_d = 14, 15
+add(BLACK, (arm_w, arm_d, 38), (torso_w / 2 + arm_w / 2 - 2, 0, torso_top - 19))
+rx = -(torso_w / 2 + arm_w / 2 - 2)
+add(BLACK, (arm_w, arm_d, 20), (rx, 0, torso_top - 10))
+add(BLACK, (arm_w, arm_d, 26), (rx, 5, torso_top + 8))
+# skin hands
+add(SKIN, (arm_w + 1, arm_d + 1, 7), (torso_w / 2 + arm_w / 2 - 2, 0, torso_top - 38 + 3))
+add(SKIN, (arm_w + 1, arm_d + 1, 7), (rx, 6, torso_top + 8 + 13))
 
-# Left arm (figure's left = +X here), hanging straight down
-left_arm_h = 40
-add((arm_w, arm_d, left_arm_h),
-    (torso_w / 2 + arm_w / 2 - 2, 0, torso_top - left_arm_h / 2))
+# raised cyan pixel pattern on the suit ------------------------------------
+fy = torso_d / 2
+px = 5.5
+pat = [(-1, 2), (0, 1), (1, 1), (1, 0), (0, 0), (-1, -1), (0, -1), (-2, 0), (2, -1)]
+for gx, gz in pat:
+    add(CYAN, (px, 2.5, px), (gx * px * 1.15, fy, torso_z + gz * px * 1.15))
+for (lx, gz) in [(-11, 1), (-11, -1), (11, 0), (11, -2)]:
+    add(CYAN, (px, 2.5, px), (lx + 3, leg_d / 2, leg_z + gz * px * 1.2))
 
-# Right arm (figure's right = -X), raised: upper segment + forearm up to camera
-upper_h = 22
-add((arm_w, arm_d, upper_h),
-    (-(torso_w / 2 + arm_w / 2 - 2), 0, torso_top - upper_h / 2))
-# forearm rising toward the camera near the head
-fore_h = 26
-add((arm_w, arm_d, fore_h),
-    (-(torso_w / 2 + arm_w / 2 - 2), 4, torso_top + fore_h / 2 - 6))
+# ============================================================================
+# CAMERA (grey/black) in the raised hand
+# ============================================================================
+cam_x, cam_z = rx, torso_top + 24
+add(GREY, (22, 24, 19), (cam_x, 9, cam_z))
+put(BLACK, disc(8, 15, (cam_x, 9 + 18, cam_z), axis="y", sections=36))
+add(RED, (7, 7, 9), (cam_x + 4, 5, cam_z + 13))
+add(GREY, (10, 4, 7), (cam_x, 9, cam_z + 12))
 
-# ----------------------------------------------------------------------------
-# CAMERA — held up near the right side, by the head
-# ----------------------------------------------------------------------------
-cam_x = -(torso_w / 2 + arm_w / 2 - 2)
-cam_z = torso_top + 22
-add((20, 22, 18), (cam_x, 8, cam_z))                 # camera body
-# lens barrel pointing forward (+Y)
-lens = trimesh.creation.cylinder(radius=7, height=14, sections=32)
-lens.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0]))
-lens.apply_translation([cam_x, 8 + 11 + 5, cam_z])
-parts.append(lens)
-add((6, 6, 8), (cam_x + 4, 4, cam_z + 13))           # top mic / accessory
+# ============================================================================
+# NECK + HEAD (skin)
+# ============================================================================
+neck_h = 5
+add(SKIN, (22, 17, neck_h), (0, 0, torso_top + neck_h / 2))
 
-# ----------------------------------------------------------------------------
-# NECK + HEAD — oversized square Funko head
-# ----------------------------------------------------------------------------
-neck_h = 6
-add((20, 16, neck_h), (0, 0, torso_top + neck_h / 2))
-
-head_w = 60
-head_d = 54
-head_h = 56
+head_w, head_d, head_h = 64, 58, 60
 head_z = torso_top + neck_h + head_h / 2
-add((head_w, head_d, head_h), (0, 0, head_z))
-
 head_top = torso_top + neck_h + head_h
+put(SKIN, box((head_w, head_d, head_h), (0, 0, head_z)))
+fy_head = head_d / 2
 
-# ----------------------------------------------------------------------------
-# HAIR — blocky slabs sitting on top and sides of the head (jagged fringe)
-# ----------------------------------------------------------------------------
-hair_z = head_top + 7
-add((head_w + 4, head_d + 4, 16), (0, 0, hair_z))            # main hair cap
-# side burns / sides
-add((10, head_d + 2, 26), (-(head_w / 2 + 1), 0, head_top - 6))
-add((10, head_d + 2, 26), (+(head_w / 2 + 1), 0, head_top - 6))
-# jagged fringe blocks over the forehead (front face, +Y)
-fringe_y = head_d / 2 - 4
-for i, x in enumerate(np.linspace(-22, 22, 5)):
-    h = 14 if i % 2 == 0 else 9
-    add((11, 8, h), (x, fringe_y, head_top - h / 2 + 2))
+# ---- FACE: eyes, brows, nose ----------------------------------------------
+eye_z = head_z - 2
+for ex in (-15, 15):
+    put(EYE, disc(9.5, 4, (ex, fy_head - 0.5, eye_z), axis="y", sections=44))
+add(BROW, (13, 3, 4), (-15, fy_head, eye_z + 13))
+add(BROW, (11, 3, 3), (15, fy_head, eye_z + 12))
+nose = Polygon([(-3, 0), (3, 0), (0, -6)])
+n = trimesh.creation.extrude_polygon(nose, height=4)
+n.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2, [0, 0, 1]))
+n.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
+n.apply_translation([0, fy_head, eye_z - 7])
+put(SKIN, n)
 
-# ----------------------------------------------------------------------------
-# Assemble + export
-# ----------------------------------------------------------------------------
-print(f"Combining {len(parts)} parts...")
+# ============================================================================
+# HAIR (brown, swept blocky fringe)
+# ============================================================================
+hair_top_z = head_top + 7
+add(BROWN, (head_w + 5, head_d + 5, 16), (0, 0, hair_top_z))
+add(BROWN, (11, head_d + 3, 30), (-(head_w / 2 + 1), 0, head_top - 8))
+add(BROWN, (11, head_d + 3, 30), (+(head_w / 2 + 1), 0, head_top - 8))
+heights = [22, 17, 12, 9, 7]
+for i, gx in enumerate(np.linspace(-26, 26, 5)):
+    h = heights[i]
+    add(BROWN, (12.5, 9, h), (gx, fy_head - 3, head_top - h / 2 + 3))
+add(BROWN, (14, 14, 9), (-12, 6, hair_top_z + 9))
+add(BROWN, (11, 11, 7), (10, -4, hair_top_z + 8))
 
-mesh = None
-try:
-    # Try a proper boolean union for a clean watertight solid.
-    mesh = trimesh.boolean.union(parts)
-    if mesh is None or mesh.is_empty:
-        raise RuntimeError("empty union")
-    print("Boolean union succeeded.")
-except Exception as e:
-    print(f"Boolean union unavailable ({e}); concatenating instead "
-          "(overlaps are handled by the slicer).")
-    mesh = trimesh.util.concatenate(parts)
+# ============================================================================
+# "E" logo on the BACK of the head (cyan)
+# ============================================================================
+by = -(head_d / 2)
+e_cx, e_cz, t = 0, head_z + 2, 5
+add(CYAN, (t, 3, 30), (e_cx - 9, by, e_cz))
+add(CYAN, (22, 3, t), (e_cx, by, e_cz + 13))
+add(CYAN, (18, 3, t), (e_cx - 2, by, e_cz))
+add(CYAN, (22, 3, t), (e_cx, by, e_cz - 13))
 
-# Center on origin in X/Y, sit flat on Z=0
-mesh.apply_translation([-mesh.bounds.mean(axis=0)[0],
-                        -mesh.bounds.mean(axis=0)[1],
-                        -mesh.bounds[0][2]])
+# ============================================================================
+# Assemble colored + geometry outputs
+# ============================================================================
+colored_parts, all_geom = [], []
+for key, (rgba, meshes) in GROUPS.items():
+    m = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
+    m.visual.face_colors = rgba
+    colored_parts.append(m)
+    all_geom.append(m.copy())
 
-out = "/Users/elitzurserver/Projects/אלויסון/elvison.stl"
-mesh.export(out)
+colored = trimesh.util.concatenate(colored_parts)
 
-ext = mesh.extents
-print(f"Exported: {out}")
-print(f"Bounding box (mm): X={ext[0]:.1f}  Y={ext[1]:.1f}  Z(height)={ext[2]:.1f}")
-print(f"Watertight: {mesh.is_watertight}  | Triangles: {len(mesh.faces)}")
+# center X/Y, flat on Z=0
+shift = [-colored.bounds.mean(axis=0)[0], -colored.bounds.mean(axis=0)[1], -colored.bounds[0][2]]
+colored.apply_translation(shift)
+
+glb = "/Users/elitzurserver/Projects/אלויסון/elvison_color.glb"
+colored.export(glb)
+
+# watertight single-color STL via boolean union
+print("Union for watertight STL...")
+solid = trimesh.boolean.union(all_geom)
+if solid is None or solid.is_empty:
+    solid = trimesh.util.concatenate(all_geom)
+solid.apply_translation(shift)
+stl = "/Users/elitzurserver/Projects/אלויסון/elvison.stl"
+solid.export(stl)
+
+print(f"Exported:\n  {glb}\n  {stl}")
+e = colored.extents
+print(f"BBox(mm) X={e[0]:.1f} Y={e[1]:.1f} Z={e[2]:.1f} | colors={len(GROUPS)} | "
+      f"glb_faces={len(colored.faces)} | stl_watertight={solid.is_watertight}")
