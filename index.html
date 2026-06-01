@@ -124,8 +124,7 @@
     new GLTFLoader().load('elvison_photo.glb', gltf => {
       document.getElementById('loading')?.remove();
       const pivot = new THREE.Group();
-      const model = gltf.scene;
-      model.rotation.x = -Math.PI/2;           // Z-up model -> Y-up scene
+      const model = gltf.scene;                 // GLB is already Y-up
       pivot.add(model);
       scene.add(pivot);
       pivot.updateWorldMatrix(true, true);
