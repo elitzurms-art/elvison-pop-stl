@@ -121,7 +121,7 @@
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 1.6;
 
-    new GLTFLoader().load('elvison_color.glb', gltf => {
+    new GLTFLoader().load('elvison_photo.glb', gltf => {
       document.getElementById('loading')?.remove();
       const pivot = new THREE.Group();
       const model = gltf.scene;
