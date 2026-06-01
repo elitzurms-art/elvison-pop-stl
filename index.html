@@ -22,11 +22,11 @@
   .sub { color:#7fa6ad; margin:0 0 6px; font-size:15px; }
   #viewer {
     width:min(92vw,560px); height:min(60vh,520px); margin:14px 0 6px;
-    background:var(--panel); border:1px solid #1d2730; border-radius:16px;
+    background:#dadde0; border:1px solid #1d2730; border-radius:16px;
     box-shadow:0 10px 40px rgba(0,0,0,.5); position:relative; overflow:hidden;
   }
   #loading { position:absolute; inset:0; display:flex; align-items:center;
-    justify-content:center; color:#5e7e85; font-size:14px; }
+    justify-content:center; color:#444; font-size:14px; }
   .install {
     display:inline-flex; align-items:center; gap:10px; cursor:pointer;
     background:linear-gradient(180deg,#21d0e6,#13909f); color:#022;
@@ -67,15 +67,16 @@
     התקן
   </a>
   <div class="hint">
-    לחיצה מורידה את <b>כלוד 1.stl</b> (להדפסה רגילה).
-    &nbsp;|&nbsp; <a href="elvison_color.glb" download style="color:var(--cyan)">הורדת הגרסה הצבעונית (GLB)</a>
+    לחיצה מורידה את <b>כלוד 1.stl</b> — מודל תלת-ממד אמיתי להדפסה (גובה 12 ס"מ).
   </div>
 
   <div class="parts">
-    <h2>גרסת סטנדאפ (קאט-אאוט עומד עם תמונה + בסיס)</h2>
+    <h2>פורמטים נוספים של אותו מודל</h2>
     <div class="grid">
-      <a href="elvison_standee.glb" download>סטנדאפ צבעוני (GLB) <span>↓</span></a>
-      <a href="elvison_standee.stl" download>סטנדאפ להדפסה (STL) <span>↓</span></a>
+      <a href="elvison.stl" download>STL (להדפסה) <span>↓</span></a>
+      <a href="elvison_color.glb" download>GLB (צבעוני) <span>↓</span></a>
+      <a href="elvison_color.obj" download>OBJ <span>↓</span></a>
+      <a href="elvison_color.3mf" download>3MF (הדפסה צבעונית) <span>↓</span></a>
     </div>
   </div>
 
@@ -108,6 +109,7 @@
 
     const el = document.getElementById('viewer');
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xdadde0);   // light grey so all colors show
     const camera = new THREE.PerspectiveCamera(45, el.clientWidth/el.clientHeight, 0.1, 2000);
     const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
     renderer.setSize(el.clientWidth, el.clientHeight);
@@ -121,7 +123,7 @@
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true; controls.autoRotate = true; controls.autoRotateSpeed = 1.6;
 
-    new GLTFLoader().load('elvison_photo.glb', gltf => {
+    new GLTFLoader().load('elvison_color.glb', gltf => {
       document.getElementById('loading')?.remove();
       const pivot = new THREE.Group();
       const model = gltf.scene;                 // GLB is already Y-up

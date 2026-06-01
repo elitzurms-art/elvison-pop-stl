@@ -13,16 +13,18 @@ import numpy as np
 import trimesh
 from shapely.geometry import Polygon
 
-# ---- palette (RGBA 0-255), sampled to match the reference render -----------
-SKIN   = [238, 199, 158, 255]
-BLACK  = [20, 20, 22, 255]       # black suit / base
-EYE    = [8, 8, 10, 255]         # glossy black eyes
-BROWN  = [107, 68, 35, 255]      # hair
-BROW   = [78, 48, 24, 255]       # eyebrows
-CYAN   = [25, 182, 201, 255]     # suit pixels + E logo
-WHITE  = [240, 240, 240, 255]    # shoe soles
-RED    = [220, 20, 20, 255]      # play button
-GREY   = [35, 38, 42, 255]       # camera
+# ---- palette (RGBA 0-255) — exact values from the spec-sheet COLOR PALETTE --
+#   #00E5FF cyan | #0D0D0D / #1A1A1A blacks | #8B4513 brown | #F5C78E skin
+#   #E60000 red  | #FFFFFF white
+SKIN   = [245, 199, 142, 255]    # #F5C78E
+BLACK  = [13, 13, 13, 255]       # #0D0D0D  black suit / base
+EYE    = [13, 13, 13, 255]       # #0D0D0D  glossy black eyes
+BROWN  = [139, 69, 19, 255]      # #8B4513  hair
+BROW   = [110, 54, 15, 255]      # darker brown brows
+CYAN   = [0, 229, 255, 255]      # #00E5FF  suit pixels + E logo
+WHITE  = [255, 255, 255, 255]    # #FFFFFF  shoe soles
+RED    = [230, 0, 0, 255]        # #E60000  play button
+GREY   = [26, 26, 26, 255]       # #1A1A1A  camera
 
 GROUPS = {}      # color-key -> (rgba, [meshes])
 
@@ -176,19 +178,35 @@ colored = trimesh.util.concatenate(colored_parts)
 shift = [-colored.bounds.mean(axis=0)[0], -colored.bounds.mean(axis=0)[1], -colored.bounds[0][2]]
 colored.apply_translation(shift)
 
-glb = "/Users/elitzurserver/Projects/אלויסון/elvison_color.glb"
-colored.export(glb)
+# scale to the spec-sheet print height: 12.0 cm = 120 mm
+TARGET_H = 120.0
+s = TARGET_H / colored.extents[2]
+colored.apply_scale(s)
 
-# watertight single-color STL via boolean union
+P = "/Users/elitzurserver/Projects/אלויסון/"
+glb = P + "elvison_color.glb"
+colored.export(glb)
+# colored OBJ (+mtl) for editors that read vertex/material color
+colored.export(P + "elvison_color.obj")
+# colored 3MF for color 3D printing
+try:
+    colored.export(P + "elvison_color.3mf")
+    mf = "elvison_color.3mf"
+except Exception as ex:
+    mf = f"3mf skipped ({ex})"
+
+# watertight single-color STL via boolean union, scaled to 120 mm
 print("Union for watertight STL...")
 solid = trimesh.boolean.union(all_geom)
 if solid is None or solid.is_empty:
     solid = trimesh.util.concatenate(all_geom)
 solid.apply_translation(shift)
-stl = "/Users/elitzurserver/Projects/אלויסון/elvison.stl"
+solid.apply_scale(TARGET_H / solid.extents[2])
+stl = P + "elvison.stl"
 solid.export(stl)
+solid.export(P + "elvison.obj")
 
-print(f"Exported:\n  {glb}\n  {stl}")
+print(f"Exported: elvison_color.glb / .obj / {mf} ; elvison.stl / .obj")
 e = colored.extents
-print(f"BBox(mm) X={e[0]:.1f} Y={e[1]:.1f} Z={e[2]:.1f} | colors={len(GROUPS)} | "
+print(f"BBox(mm) W={e[0]:.1f} D={e[1]:.1f} H={e[2]:.1f} | colors={len(GROUPS)} | "
       f"glb_faces={len(colored.faces)} | stl_watertight={solid.is_watertight}")

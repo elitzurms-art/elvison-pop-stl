@@ -10,14 +10,15 @@ import trimesh
 from PIL import Image
 
 P = "/Users/elitzurserver/Projects/אלויסון/"
-front = Image.open("/tmp/crop_front_main.png").convert("RGB")
-back  = Image.open("/tmp/crop_thumb_back.png").convert("RGB")
-left  = Image.open("/tmp/crop_thumb_left.png").convert("RGB")
-right = Image.open("/tmp/crop_thumb_right.png").convert("RGB")
+front = Image.open("/tmp/v3_front.png").convert("RGB")
+back  = Image.open("/tmp/v3_back.png").convert("RGB")
+left  = Image.open("/tmp/v3_left.png").convert("RGB")
+right = Image.open("/tmp/v3_right.png").convert("RGB")
 
-HT = 150.0                                   # box height (mm)
-W  = HT * front.width / front.height         # width from front aspect
-D  = 78.0                                    # depth
+# real print dimensions from the spec sheet: 7.5 x 6.5 x 12.0 cm
+HT = 120.0                                   # height (mm)
+W  = 75.0                                     # width  (mm)
+D  = 65.0                                     # depth  (mm)
 
 def face(center, normal, right_dir, hw, hh, image):
     n = np.array(normal, float)
